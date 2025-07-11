@@ -1,4 +1,4 @@
-# Amazon-MWAA-RCE
+# AWS MWAA - RCE
 
 Amazon Managed Workflows for Apache Airflow (MWAA) is a managed service to run Apache Airflow on AWS without managing infrastructure. However, most installations are affected by CVE-2024-39877, an SSTI vulnerability which allows remote code execution.
 
