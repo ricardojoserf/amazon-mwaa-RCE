@@ -49,7 +49,17 @@ doc_md="""
 
 This shows the SSTI attack was successful and the list of classes contains the *subprocess.Popen* class, which, as mentioned in the blog, is useful for executing commands remotely. 
 
-To actually call this class, we need to find the index from the list of classes. I could not figure out a way to automate it inside the SSTI payload, but you can use any way or dirty code to get the correct index for your installation. In my case it is the index number 309, so I will first print the name of the class to make sure it is "Popen":
+To actually call this class, we need to find the index from the list of classes. I could not figure out a way to automate it inside the SSTI payload, but you can use any way or dirty code to get the correct index for your installation. 
+
+For example, with this list:
+
+```
+[<class 'type'>, <class 'async_generator'>, <class 'subProcess.Popen'> ,...]
+```
+
+The class *subProcess.Popen* is the third element, but in Python the first element has the index 0, so the index for the class is actually 2.
+
+In my case it is the index number 309, so I will first print the name of the class to make sure it is "Popen":
 
 ```
 doc_md="""
