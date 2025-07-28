@@ -2,16 +2,20 @@
 
 Amazon Managed Workflows for Apache Airflow (MWAA) is a managed service to run Apache Airflow on AWS without managing infrastructure. However, most installations are affected by CVE-2024-39877, an SSTI vulnerability which allows remote code execution.
 
+This is because Amazon has been offering 8 different versions of Apache Airflow, and 6 of them are vulnerable to CVE-2024-39877. After reporting this problem, 3 of the 6 vulnerable versions are not offered anymore and they have (allegedly) applied patches to the other 3 previously vulnerable versions.
+
+In this post I will explain how incredibly easy it is to exploit this in AWS, which makes this an even more critical vulnerability in my opinion (despite that, as I will explain later, AWS VDP surprisingly considers this a low-severity vulnerability).
+
 <br>
 
 
 ## Local testing
 
-After finding the Apache Airflow used by the AWS MWAA instance was 2.9.2, I decided to find possible attacks for this version and test them first locally.
+After finding the Apache Airflow used by the AWS MWAA instance I was testing was using the 2.9.2 version, I decided to find possible attacks for this specific version and test them locally first.
 
 CVE-2024-39877 is a vulnerability affecting Apache Airflow versions 2.4.0 to 2.9.2, included. It allows authenticated users with DAG editing permissions to inject malicious Jinja2 templates into the **doc_md field**, leading to RCE. 
 
-It is perfectly explained in this [Securelayer7 blog](https://blog.securelayer7.net/arbitrary-code-execution-in-apache-airflow/), but I still needed to deep a little more in it to actually execute commands.
+It is perfectly explained in this [Securelayer7 blog](https://blog.securelayer7.net/arbitrary-code-execution-in-apache-airflow/), but I still needed to dig a little more in it to actually execute commands.
 
 First, I installed the software using Docker. The Amazon MWAA instance was using the 2.9.2 version, so I used the same:
 
@@ -57,7 +61,7 @@ For example, with this list:
 [<class 'type'>, <class 'async_generator'>, <class 'subProcess.Popen'> ,...]
 ```
 
-The class *subProcess.Popen* is the third element, but in Python the first element has the index 0, so the index for the class is actually 2.
+The class *subProcess.Popen* is the third element, but in Python the first element has index 0, so the class index we will use is 2.
 
 In my case it is the index number 309, so I will first print the name of the class to make sure it is "Popen":
 
@@ -121,6 +125,16 @@ with DAG(
     )
 ```
 
+
+If you would like to test this you can grab the files from the repository:
+
+- [test1.py](https://github.com/ricardojoserf/amazon-mwaa-RCE/blob/main/test1.py): The basic payload, it will print "9" if the SSTI is correct.
+
+- [test2.py](https://github.com/ricardojoserf/amazon-mwaa-RCE/blob/main/test2.py): Print all the direct subclasses of the object class.
+
+- [test3.py](https://github.com/ricardojoserf/amazon-mwaa-RCE/blob/main/test3.py): Print the class name and the output from "id" command assuming the index is 309 (update it with the output from test2.py!!!).
+
+
 <br>
 
 --------------------------
@@ -135,40 +149,52 @@ At the moment of writing this post, Amazon allows to set up the Apache Airflow u
 
 However, all these versions except v2.10.3 and v2.10.1 are vulnerable to CVE-2024-39877, the SSTI exploit I used to get remote command execution locally, as you can check in the NIST page: [https://nvd.nist.gov/vuln/detail/cve-2024-39877](https://nvd.nist.gov/vuln/detail/cve-2024-39877).
 
-The only difference in this case is that the DAG files are not uploaded to a "dags" folder in the filesystem, but instead to an S3 bucket. So in order to compromise this Amazon service, the prerequisites are:
+The only difference in this case is that the DAG files are not uploaded to a "dags" folder in the filesystem, but instead to an S3 bucket. So, in order to compromise this Amazon service, the prerequisites are:
 
 - The Apache Airflow version must be 2.9.2 or below.
 
-- You need to be authenticated to the Apache Airflow web panel.
+- You need to be authenticated to the Apache Airflow web panel as any user.
 
 - You need to have permissions to write the DAG files to the S3 bucket.
 
 For me, this was easy to obtain as this was a penetration test and not a Red Team assessment, so I could ask the affected team to upload the necessary files. If this had been an Apache Airflow installation and not the Amazon service, I would have been in a similar situation because I would have needed to upload the DAG files to the filesystem anyway.
 
-To test the MWAA service, I sent 3 files containing different payloads:
+<br>
 
-- File 1: With a very simple payload ({{ 3\*3 }}).
-- File 2: With the code to list the available classes.
-- File 3: With the code to execute "cat /etc/passwd" assumming the index was 309.
+To test the MWAA service, I sent the 3 files from this repository containing the different payloads:
 
-First one... Success!
+- [test1.py](https://github.com/ricardojoserf/amazon-mwaa-RCE/blob/main/test1.py): With a very simple payload ({{ 3\*3 }}). This prints "9"... Success!
 
 ![img5](https://raw.githubusercontent.com/ricardojoserf/ricardojoserf.github.io/refs/heads/master/images/mwaa/Screenshot_5.jpg)
 
-Second one... Success!
+
+- [test2.py](https://github.com/ricardojoserf/amazon-mwaa-RCE/blob/main/test1.py): With the code to list the available classes. This lists the subclasses... Success!
 
 ![img6](https://raw.githubusercontent.com/ricardojoserf/ricardojoserf.github.io/refs/heads/master/images/mwaa/Screenshot_6.jpg)
 
-Third one... Not success
+
+- [test3.py](https://github.com/ricardojoserf/amazon-mwaa-RCE/blob/main/test3.py): With the code to execute "cat /etc/passwd" assuming the index was 309. This one generates an error... Not success :(
 
 ![img7](https://raw.githubusercontent.com/ricardojoserf/ricardojoserf.github.io/refs/heads/master/images/mwaa/Screenshot_7.jpg)
 
-
-This was expected, because the classes order (the one we get when uploading the second file) is different for each instance of Apache Airflow I have tested. So it is time to read the output from the second DAG file again, find the correct index of the *subprocess.Popen* class, reupload the third file with the updated index and...
+This was expected, because the order of the classes (as retrieved after uploading test2.py) is different for each instance of Apache Airflow I have tested. So it is time to read the output from the second DAG file again, find the correct index of the *subprocess.Popen* class, reupload the third file with the updated index and...
 
 ![img8](https://raw.githubusercontent.com/ricardojoserf/ricardojoserf.github.io/refs/heads/master/images/mwaa/Screenshot_8.jpg)
 
+
 ... Success! RCE in Amazon MWAA :)
+
+
+<br>
+
+Now, what can we get from this RCE, apart from running any command in the EC2 instance of Amazon MWAA? For example, listing all the environment variables, which contain credentials to connect to other AWS services. Some of these variables are:
+
+| Environment Variable Name                                               | Description                                    |
+|-------------------------------------------------------------------------|------------------------------------------------|
+| *AIRFLOW__CELERY__RESULT_BACKEND* and *AIRFLOW__DATABASE__SQL_ALCHEMY_CONN* | PostgreSQL connection URI                      |
+| *DB_SECRETS* and *MWAA__DB__CREDENTIALS*                                    | PostgreSQL credentials                         |
+| *MWAA__CORE__FERNET_KEY* and *FERNET_SECRET*                                | Fernet key used for encryption                 |
+
 
 <br>
 
@@ -177,11 +203,37 @@ This was expected, because the classes order (the one we get when uploading the 
 
 ## Responsible Disclosure Timeline
 
-24-6-25 - Reported to AWS VDP
+24/6/25 - Reported to AWS VDP through HackerOne (report #3217840).
 
-26-6-25 - RCE confirmed 
+26/6/25 - RCE confirmed and severity was changed from High (8.5) to High.
+
+21/7/25 - AWS VDP closed the report as "Informative", changed severity from High to Low and sent the reward (40 dollars for the AWS Merch Store)
+
+27/7/25 - After some days trying to explain the severity is not low, I gave up and asked the report to be made public.
 
 
+The report will be made public in this link: [https://hackerone.com/reports/3217840](https://hackerone.com/reports/3217840)
+
+<br>
+
+
+
+--------------------------
+
+## Conclusion
+
+
+This was not the smoothest vulnerability disclosure I have experienced in my career, to be honest.
+
+The colleagues from HackerOne did not understand my explanations, and did not stop asking for a PoC in video format, so I ended up creating a one-hour-long video. Still after that, they could not replicate the vulnerability, so summing up I spent many hours just so the vulnerability could be confirmed (this is not a criticism to the HackerOne employees but to AWS VDP, as I will explain in a moment). 
+
+Then, after almost a month, AWS VDP decided to close the report and lower the severity from "High" to "Low" arguing that it is a "low-risk" vulnerability. How could a RCE vulnerability have a low severity? First, the risk is not exactly low - is it uncommon to find AWS credentials with write access to a S3 bucket during a Red Team exercise? And even if this were truly a low risk, the impact is the highest possible...
+
+I could not make them change their mind, and at the end of the day this is a VDP (Vulnerability Disclosure Program), so regardless the criticality they could choose not to pay any reward to the researchers, even if the severity is High or Critical, as this vulnerability could be.
+
+After spending so many hours with this topic, I am glad I could make them understand the vulnerability and stop offering 3 of the 6 vulnerable versions and (allegedly) apply patches to the other 3 versions. 
+
+However, the reward (40 dollars to spend in the AWS Merch Store) is not worth all the time spent with this topic. In the past, I have reported vulnerabilities to many small and medium organizations which did not offer to pay a reward, and that is totally fine... but AWS is not precisely a small company. To make sure AWS services are secure, it is not a good idea just to rely on researchers' good faith!
 
 
 <br>
@@ -190,6 +242,8 @@ This was expected, because the classes order (the one we get when uploading the 
 
 ## Sources
 
-- [Securelayer7 blog](https://blog.securelayer7.net/arbitrary-code-execution-in-apache-airflow/)
+- [Securelayer7 blog](https://blog.securelayer7.net/arbitrary-code-execution-in-apache-airflow/): Fantastic explanation of the CVE-2024-39877 vulnerability.
+
+- [HackerOne report](https://hackerone.com/reports/3217840): It will hopefully be public soon.
 
 <br>
