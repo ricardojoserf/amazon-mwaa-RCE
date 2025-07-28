@@ -2,7 +2,7 @@
 
 Amazon Managed Workflows for Apache Airflow (MWAA) is a managed service to run Apache Airflow on AWS without managing infrastructure. However, most installations are affected by CVE-2024-39877, an SSTI vulnerability which allows remote code execution.
 
-This is because Amazon has been offering 8 different versions of Apache Airflow, and 6 of them are vulnerable to CVE-2024-39877. After reporting this problem, 3 of the 6 vulnerable versions are not offered anymore and they have (allegedly) applied patches to the other 3 previously vulnerable versions.
+This is because Amazon has been offering 8 different versions of Apache Airflow, and 6 of them are vulnerable to CVE-2024-39877. After reporting this problem, 3 of the 6 vulnerable versions are not offered anymore and they have applied patches to the other 3 previously vulnerable versions.
 
 In this post I will explain how incredibly easy it is to exploit this in AWS, which makes this an even more critical vulnerability in my opinion (despite that, as I will explain later, AWS VDP surprisingly considers this a low-severity vulnerability).
 
@@ -207,12 +207,9 @@ Now, what can we get from this RCE, apart from running any command in the EC2 in
 
 26/6/25 - RCE confirmed and severity was changed from High (8.5) to High.
 
-21/7/25 - AWS VDP closed the report as "Informative", changed severity from High to Low and sent the reward (40 dollars for the AWS Merch Store)
+21/7/25 - AWS VDP closed the report as "Informative", changed severity from High to Low and sent the reward (40 dollars for the AWS Merch Store).
 
-27/7/25 - After some days trying to explain the severity is not low, I gave up and asked the report to be made public.
-
-
-The report will be made public in this link: [https://hackerone.com/reports/3217840](https://hackerone.com/reports/3217840)
+27/7/25 - Asked the report to be made public.
 
 <br>
 
@@ -222,19 +219,17 @@ The report will be made public in this link: [https://hackerone.com/reports/3217
 
 ## Conclusion
 
+After almost a month since I reported this vulnerability, AWS VDP decided to close the report and lower the severity from "High" to "Low" arguing that it is a "low-risk" vulnerability. How could a RCE vulnerability have a low severity? First, the risk is not exactly low - is it uncommon to find AWS credentials with write access to a S3 bucket during a Red Team exercise? And even if this were truly a low risk, the impact is high (it is a RCE).
 
-This was not the smoothest vulnerability disclosure I have experienced in my career, to be honest.
+At the end of the day this is a VDP (Vulnerability Disclosure Program), so regardless the criticality they could choose not to pay any reward to the researchers, even if the severity is High or Critical.
 
-The colleagues from HackerOne did not understand my explanations, and did not stop asking for a PoC in video format, so I ended up creating a one-hour-long video. Still after that, they could not replicate the vulnerability, so summing up I spent many hours just so the vulnerability could be confirmed (this is not a criticism to the HackerOne employees but to AWS VDP, as I will explain in a moment). 
-
-Then, after almost a month, AWS VDP decided to close the report and lower the severity from "High" to "Low" arguing that it is a "low-risk" vulnerability. How could a RCE vulnerability have a low severity? First, the risk is not exactly low - is it uncommon to find AWS credentials with write access to a S3 bucket during a Red Team exercise? And even if this were truly a low risk, the impact is the highest possible...
-
-I could not make them change their mind, and at the end of the day this is a VDP (Vulnerability Disclosure Program), so regardless the criticality they could choose not to pay any reward to the researchers, even if the severity is High or Critical, as this vulnerability could be.
-
-After spending so many hours with this topic, I am glad I could make them understand the vulnerability and stop offering 3 of the 6 vulnerable versions and (allegedly) apply patches to the other 3 versions. 
+So after spending so many hours with this topic, I am glad I could make them understand the vulnerability and stop offering 3 of the 6 vulnerable versions and apply patches to the other 3 versions. 
 
 However, the reward (40 dollars to spend in the AWS Merch Store) is not worth all the time spent with this topic. In the past, I have reported vulnerabilities to many small and medium organizations which did not offer to pay a reward, and that is totally fine... but AWS is not precisely a small company. To make sure AWS services are secure, it is not a good idea just to rely on researchers' good faith!
 
+And I know code execution is the whole point of Apache airflow... but CVE-2024-39877 got a CVSS of 8.8, so I this is not the expected way to execute code in these systems. 
+
+So, I am happy I could order a cool sweater I hope I will be receiving in the next months (with the 40 dollars of the reward) and that they patched the Apache Airflow versions.
 
 <br>
 
