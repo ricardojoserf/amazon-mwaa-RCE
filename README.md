@@ -4,7 +4,7 @@ Amazon Managed Workflows for Apache Airflow (MWAA) is a managed service to run A
 
 This is because Amazon has been offering 8 different versions of Apache Airflow, and 6 of them are vulnerable to CVE-2024-39877. After reporting this problem, 3 of the 6 vulnerable versions are not offered anymore and they have applied patches to the other 3 previously vulnerable versions.
 
-In this post I will explain how incredibly easy it is to exploit this in AWS, which makes this an even more critical vulnerability in my opinion (despite that, as I will explain later, AWS VDP surprisingly considers this a low-severity vulnerability).
+In this post I will explain how incredibly easy it is to exploit this in AWS, which makes this an even more critical vulnerability in my opinion (despite that, as I will explain later, AWS VDP considers this a low-severity vulnerability).
 
 <br>
 
@@ -15,7 +15,7 @@ After finding the Apache Airflow used by the AWS MWAA instance I was testing was
 
 CVE-2024-39877 is a vulnerability affecting Apache Airflow versions 2.4.0 to 2.9.2, included. It allows authenticated users with DAG editing permissions to inject malicious Jinja2 templates into the **doc_md field**, leading to RCE. 
 
-It is perfectly explained in this [Securelayer7 blog](https://blog.securelayer7.net/arbitrary-code-execution-in-apache-airflow/), but I still needed to dig a little more in it to actually execute commands.
+The exploit was made public in this [Securelayer7 blog](https://blog.securelayer7.net/arbitrary-code-execution-in-apache-airflow/), but I still needed to dig a little more in it to actually execute commands.
 
 First, I installed the software using Docker. The Amazon MWAA instance was using the 2.9.2 version, so I used the same:
 
@@ -231,7 +231,7 @@ But still, I am happy I could order a cool sweater I hope I will be receiving in
 
 ## Sources
 
-- [Securelayer7 blog](https://blog.securelayer7.net/arbitrary-code-execution-in-apache-airflow/): Fantastic explanation of the CVE-2024-39877 vulnerability.
+- [Securelayer7 blog](https://blog.securelayer7.net/arbitrary-code-execution-in-apache-airflow/)
 
 - [HackerOne report](https://hackerone.com/reports/3217840)
 
