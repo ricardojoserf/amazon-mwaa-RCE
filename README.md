@@ -209,6 +209,8 @@ Now, what can we get from this RCE, apart from running any command in the EC2 in
 
 27/7/25 - Asked the report to be made public.
 
+14/8/25 - After a final meeting with AWS, the report and this post are now public.
+
 <br>
 
 --------------------------
@@ -231,6 +233,6 @@ But still, I am happy I could order a cool sweater I hope I will be receiving in
 
 - [Securelayer7 blog](https://blog.securelayer7.net/arbitrary-code-execution-in-apache-airflow/): Fantastic explanation of the CVE-2024-39877 vulnerability.
 
-- [HackerOne report](https://hackerone.com/reports/3217840): It will hopefully be public soon.
+- [HackerOne report](https://hackerone.com/reports/3217840)
 
 <br>
